@@ -1,0 +1,106 @@
+export enum KYCStatus {
+  PENDING = 'PENDING',
+  SUBMITTED = 'SUBMITTED',
+  VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
+}
+
+export enum Plan {
+  FREE = 'FREE',
+  PRO = 'PRO',
+  ENTERPRISE = 'ENTERPRISE',
+}
+
+export enum OTPType {
+  LOGIN = 'LOGIN',
+  REGISTER = 'REGISTER',
+  RESET_PIN = 'RESET_PIN',
+  KYC = 'KYC',
+  NOMINEE_VERIFY = 'NOMINEE_VERIFY',
+  TRANSACTION = 'TRANSACTION',
+}
+
+export enum DocumentType {
+  INSURANCE = 'INSURANCE',
+  FIXED_DEPOSIT = 'FIXED_DEPOSIT',
+  PROPERTY = 'PROPERTY',
+  MUTUAL_FUND = 'MUTUAL_FUND',
+  STOCK_CERTIFICATE = 'STOCK_CERTIFICATE',
+  WILL = 'WILL',
+  BANK_STATEMENT = 'BANK_STATEMENT',
+  PAN_CARD = 'PAN_CARD',
+  AADHAAR = 'AADHAAR',
+  PASSPORT = 'PASSPORT',
+  OTHER = 'OTHER',
+}
+
+export enum DocumentStatus {
+  ACTIVE = 'ACTIVE',
+  EXPIRED = 'EXPIRED',
+  REVOKED = 'REVOKED',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export enum ProcessingStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
+
+export enum BlockchainStatus {
+  UNVERIFIED = 'UNVERIFIED',
+  PENDING_TX = 'PENDING_TX',
+  VERIFIED = 'VERIFIED',
+  FAILED = 'FAILED',
+}
+
+export enum NomineeType {
+  INDIVIDUAL = 'INDIVIDUAL',
+  NGO = 'NGO',
+}
+
+export enum AccessType {
+  READ_ONLY = 'READ_ONLY',
+  PARTIAL = 'PARTIAL',
+  FULL_VAULT = 'FULL_VAULT',
+}
+
+export enum AccountType {
+  BANK = 'BANK',
+  BROKER = 'BROKER',
+  MUTUAL_FUND = 'MUTUAL_FUND',
+  INSURANCE = 'INSURANCE',
+  OTHER = 'OTHER',
+}
+
+export enum SyncStatus {
+  PENDING = 'PENDING',
+  SYNCING = 'SYNCING',
+  SYNCED = 'SYNCED',
+  FAILED = 'FAILED',
+}
+
+export enum ReportStatus {
+  GENERATING = 'GENERATING',
+  READY = 'READY',
+  EXPIRED = 'EXPIRED',
+}
+
+export enum TransactionStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+}
+
+export enum NotificationType {
+  DOCUMENT_VERIFIED = 'DOCUMENT_VERIFIED',
+  NOMINEE_ADDED = 'NOMINEE_ADDED',
+  ACCOUNT_SYNCED = 'ACCOUNT_SYNCED',
+  DEAD_MAN_WARNING = 'DEAD_MAN_WARNING',
+  REPORT_READY = 'REPORT_READY',
+  PAYMENT_SUCCESS = 'PAYMENT_SUCCESS',
+  SECURITY_ALERT = 'SECURITY_ALERT',
+  SYSTEM = 'SYSTEM',
+}
