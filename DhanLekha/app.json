@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "DhanLekha",
+    "slug": "dhanlekha",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A192F"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.dhanlekha.app",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "phonepe",
+          "tez",
+          "paytm",
+          "bhim",
+          "upi"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A192F"
+      },
+      "package": "com.dhanlekha.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-dev-client",
+      "expo-web-browser"
+    ]
+  }
+}

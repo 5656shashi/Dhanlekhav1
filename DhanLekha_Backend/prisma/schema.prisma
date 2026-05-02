@@ -1,0 +1,526 @@
+// DhanLekha — Prisma Schema
+// PostgreSQL database schema for the entire application
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────
+
+model User {
+  id                String    @id @default(uuid())
+  phone             String    @unique
+  email             String?   @unique
+  name              String?
+  avatarUrl         String?
+  pinHash           String?
+  deviceId          String?
+  fcmToken          String?
+  
+  // KYC
+  kycStatus         KYCStatus @default(PENDING)
+  aadhaarHash       String?   // hashed, never stored raw
+  panHash           String?
+  kycVerifiedAt     DateTime?
+  
+  // Subscription
+  plan              Plan      @default(FREE)
+  planExpiresAt     DateTime?
+  
+  // Security
+  twoFAEnabled      Boolean   @default(false)
+  twoFASecret       String?
+  biometricEnabled  Boolean   @default(true)
+  lastLoginAt       DateTime?
+  lastActiveAt      DateTime?
+  
+  // Dead-Man Switch
+  deadManEnabled    Boolean   @default(true)
+  deadManDays       Int       @default(180)
+  deadManTriggeredAt DateTime?
+  
+  // Blockchain
+  walletAddress     String?
+  
+  // Metadata
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  refreshTokens     RefreshToken[]
+  otps              OTP[]
+  documents         Document[]
+  nominees          Nominee[]
+  connectedAccounts ConnectedAccount[]
+  transactions      Transaction[]
+  reports           WealthReport[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  fuzzSessions      FuzzSession[]
+  
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  deviceId  String?
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("refresh_tokens")
+}
+
+model OTP {
+  id        String   @id @default(uuid())
+  userId    String?
+  phone     String?
+  email     String?
+  code      String
+  type      OTPType
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("otps")
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENTS
+// ─────────────────────────────────────────────
+
+model Document {
+  id              String          @id @default(uuid())
+  userId          String
+  title           String
+  docType         DocumentType
+  category        String?
+  description     String?
+  
+  // File storage
+  fileUrl         String          // encrypted S3 / local path
+  fileName        String
+  fileSize        Int
+  mimeType        String
+  encryptionKey   String          // per-document AES key (encrypted with master key)
+  
+  // AI / OCR
+  ocrStatus       ProcessingStatus @default(PENDING)
+  ocrData         Json?           // extracted fields
+  ocrConfidence   Float?
+  fraudScore      Float?
+  
+  // Blockchain
+  blockchainStatus BlockchainStatus @default(UNVERIFIED)
+  documentHash    String?          // SHA-256
+  txHash          String?          // blockchain tx hash
+  blockNumber     BigInt?
+  contractRef     String?
+  verifiedAt      DateTime?
+  
+  // Validity
+  issuedBy        String?
+  issuedDate      DateTime?
+  expiryDate      DateTime?
+  
+  // Status
+  status          DocumentStatus  @default(ACTIVE)
+  isDeleted       Boolean         @default(false)
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nomineeAccess   NomineeDocumentAccess[]
+  reportItems     ReportItem[]
+  
+  @@map("documents")
+}
+
+// ─────────────────────────────────────────────
+// NOMINEES
+// ─────────────────────────────────────────────
+
+model Nominee {
+  id              String        @id @default(uuid())
+  userId          String
+  name            String
+  relation        String
+  phone           String?
+  email           String?
+  aadhaarHash     String?
+  
+  // Type
+  nomineeType     NomineeType   @default(INDIVIDUAL)
+  ngoName         String?       // for NGO type
+  ngoRegNo        String?
+  
+  // Access
+  accessType      AccessType    @default(READ_ONLY)
+  allocationPct   Float         @default(0)  // 0-100
+  conditions      Json?         // trigger conditions
+  
+  // Verification
+  isVerified      Boolean       @default(false)
+  verifiedAt      DateTime?
+  
+  // Blockchain
+  smartContractRef String?
+  txHash          String?
+  
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentAccess  NomineeDocumentAccess[]
+  
+  @@map("nominees")
+}
+
+model NomineeDocumentAccess {
+  id          String   @id @default(uuid())
+  nomineeId   String
+  documentId  String
+  grantedAt   DateTime @default(now())
+  revokedAt   DateTime?
+  
+  nominee     Nominee  @relation(fields: [nomineeId], references: [id], onDelete: Cascade)
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  @@unique([nomineeId, documentId])
+  @@map("nominee_document_access")
+}
+
+// ─────────────────────────────────────────────
+// CONNECTED ACCOUNTS
+// ─────────────────────────────────────────────
+
+model ConnectedAccount {
+  id              String          @id @default(uuid())
+  userId          String
+  provider        String          // "hdfc", "zerodha", "upstox", "groww", etc.
+  providerName    String
+  accountType     AccountType
+  accessToken     String?         // encrypted
+  refreshToken    String?         // encrypted
+  tokenExpiresAt  DateTime?
+  
+  // Synced data
+  accountNumber   String?         // masked
+  holdingsJson    Json?           // latest holdings snapshot
+  lastSyncedAt    DateTime?
+  syncStatus      SyncStatus      @default(PENDING)
+  
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, provider])
+  @@map("connected_accounts")
+}
+
+// ─────────────────────────────────────────────
+// WEALTH REPORTS
+// ─────────────────────────────────────────────
+
+model WealthReport {
+  id              String        @id @default(uuid())
+  userId          String
+  title           String        @default("Wealth Report")
+  slug            String        @unique @default(uuid())
+  
+  // Config
+  includeNetworth Boolean       @default(true)
+  totalValue      Float?
+  
+  // Sharing
+  shareToken      String        @unique @default(uuid())
+  shareUrl        String?
+  expiresAt       DateTime?
+  viewCount       Int           @default(0)
+  
+  // Blockchain
+  reportHash      String?
+  txHash          String?
+  
+  // Status
+  status          ReportStatus  @default(GENERATING)
+  pdfUrl          String?
+  securityAudit   Json?         // Resilience details when Shield is active
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           ReportItem[]
+  
+  @@map("wealth_reports")
+}
+
+model ReportItem {
+  id          String        @id @default(uuid())
+  reportId    String
+  documentId  String?
+  assetName   String
+  assetType   String
+  value       Float
+  metadata    Json?
+  
+  report      WealthReport  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  document    Document?     @relation(fields: [documentId], references: [id])
+  
+  @@map("report_items")
+}
+
+// ─────────────────────────────────────────────
+// TRANSACTIONS (Payment)
+// ─────────────────────────────────────────────
+
+model Transaction {
+  id                String            @id @default(uuid())
+  userId            String
+  razorpayOrderId   String?           @unique
+  razorpayPaymentId String?           @unique
+  razorpaySignature String?
+  amount            Float
+  currency          String            @default("INR")
+  status            TransactionStatus @default(PENDING)
+  purpose           PaymentPurpose
+  // Reference to what was paid for
+  documentId        String?
+  accountProvider   String?
+  // Blockchain proof anchored after payment
+  blockchainTxHash  String?
+  blockchainProof   Json?
+  metadata          Json?
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user              User              @relation(fields: [userId], references: [id])
+
+  @@map("transactions")
+}
+
+// ─────────────────────────────────────────────
+// AUDIT LOG
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  type      NotificationType
+  data      Json?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────
+// SECURITY LAB (Fuzz Testing)
+// ─────────────────────────────────────────────
+
+model FuzzSession {
+  id              String   @id @default(uuid())
+  userId          String
+  targetEndpoint  String   // e.g., "/api/v1/documents"
+  method          String   // GET, POST, etc.
+  iterations      Int      @default(100)
+  currentIteration Int     @default(0)
+  crashes         Int      @default(0)
+  anomalies       Int      @default(0)
+  status          String   @default("PENDING") // PENDING, RUNNING, COMPLETED, STOPPED
+  config          Json?    // Stores enabled categories
+  
+  results         FuzzResult[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("fuzz_sessions")
+}
+
+model FuzzResult {
+  id              String   @id @default(uuid())
+  sessionId       String
+  category        String   // sql_injection, xss, etc.
+  inputPayload    Json     // The exact data sent
+  statusCode      Int?
+  responseTime    Int      // in ms
+  severity        String   // CLEAN, ANOMALY, CRASH
+  errorReason     String?  // Why it was marked as anomaly/crash
+  responseBody    String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  session         FuzzSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("fuzz_results")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum KYCStatus {
+  PENDING
+  SUBMITTED
+  VERIFIED
+  REJECTED
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum OTPType {
+  LOGIN
+  REGISTER
+  RESET_PIN
+  KYC
+  NOMINEE_VERIFY
+  TRANSACTION
+}
+
+enum DocumentType {
+  INSURANCE
+  FIXED_DEPOSIT
+  PROPERTY
+  MUTUAL_FUND
+  STOCK_CERTIFICATE
+  WILL
+  BANK_STATEMENT
+  PAN_CARD
+  AADHAAR
+  PASSPORT
+  OTHER
+}
+
+enum DocumentStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ARCHIVED
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum BlockchainStatus {
+  UNVERIFIED
+  PENDING_TX
+  VERIFIED
+  FAILED
+}
+
+enum NomineeType {
+  INDIVIDUAL
+  NGO
+}
+
+enum AccessType {
+  READ_ONLY
+  PARTIAL
+  FULL_VAULT
+}
+
+enum AccountType {
+  BANK
+  BROKER
+  MUTUAL_FUND
+  INSURANCE
+  OTHER
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  FAILED
+}
+
+enum ReportStatus {
+  GENERATING
+  READY
+  EXPIRED
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentPurpose {
+  DOCUMENT_UPLOAD
+  API_INTEGRATION
+  SUBSCRIPTION
+}
+
+enum NotificationType {
+  DOCUMENT_VERIFIED
+  NOMINEE_ADDED
+  ACCOUNT_SYNCED
+  LEGACY_SWITCH_WARNING
+  REPORT_READY
+  PAYMENT_SUCCESS
+  SECURITY_ALERT
+  SYSTEM
+}
