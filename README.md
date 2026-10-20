@@ -71,7 +71,7 @@ npx expo start
 
 Scan QR with Expo Go, or press `i` (iOS) / `a` (Android).
 
----
+-----
 
 ## Features
 
